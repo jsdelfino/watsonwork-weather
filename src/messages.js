@@ -92,7 +92,7 @@ export const sendToSpace = (spaceId,
             id
           }
         }
-      }`, spaceId, title, text, actor),
+      }`, spaceId, title || '', text || '', actor || ''),
     token, (err, res) => {
       if(err) {
         log('Error sending message %o', err);
@@ -138,7 +138,7 @@ export const sendToPrivateDialog = (spaceId, userId, dialogId,
         }) {
           successful
         }
-      }`, spaceId, userId, dialogId, title, text, actor,
+      }`, spaceId, userId, dialogId, title || '', text || '', actor || '',
 
         // Generate postback buttons
         (buttons || []).map((b) => util.format(`{

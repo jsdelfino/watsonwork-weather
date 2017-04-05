@@ -253,14 +253,12 @@ const sharedWeatherForecast = (user, w) => ({
 
 // Shared with the space
 const shared = () => ({
-  title: 'Your message was successfully shared with the space.',
-  text: ' '
+  title: 'Your message was successfully shared with the space.'
 });
 
 // Nothing will be shared
 const notSharing = () => ({
-  title: 'OK, nothing will be shared with the space.',
-  text: ' '
+  title: 'OK, nothing will be shared with the space.'
 });
 
 // Missing city
@@ -271,8 +269,7 @@ const missingCity = () => ({
 
 // City not found
 const cityNotFound = (city) => ({
-  title: util.format('I couldn\'t find %s, I need a valid city.', city),
-  text: ' '
+  title: util.format('I couldn\'t find %s, I need a valid city.', city)
 });
 
 // Create Express Web app
