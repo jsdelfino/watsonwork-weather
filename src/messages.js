@@ -2,7 +2,6 @@
 
 import * as util from 'util';
 import * as graphql from './graphql';
-import * as request from 'request';
 import debug from 'debug';
 
 // Setup debug log

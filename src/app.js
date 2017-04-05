@@ -84,6 +84,13 @@ export const weather = (appId, store, wuser, wpassword, token) =>
           astate.city = city;
 
           if(action === 'Get_Weather_Conditions') {
+            if(!city) {
+              // Tell the user that a city name is needed
+              sendToPrivateDialog(missingCity());
+              cb(null, astate);
+              return;
+            }
+
             // Get the weather conditions
             twc.conditions(city,
               wuser, wpassword, (err, conditions) => {
@@ -110,6 +117,13 @@ export const weather = (appId, store, wuser, wpassword, token) =>
           }
 
           if(action === 'Get_Weather_Forecast') {
+            if(!city) {
+              // Tell the user that a city name is needed
+              sendToPrivateDialog(missingCity());
+              cb(null, astate);
+              return;
+            }
+
             // Get a weather forecast
             twc.forecast5d(astate.city,
               wuser, wpassword, (err, forecast) => {
