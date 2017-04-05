@@ -14,6 +14,7 @@ export const user = (userId, token, cb) => {
     query {
       person(id: "%s") {
         id
+        extId
         displayName
         email
       }
