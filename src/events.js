@@ -1,47 +1,44 @@
 // Utility functions to work with Watson Work Webhook events
 
 import * as messages from './messages';
+import * as users from './users';
 import * as util from 'util';
 import debug from 'debug';
 
 // Setup debug log
 const log = debug('watsonwork-weather-events');
 
-// Call a callback function with the info extracted from an annotation
-// event, the original annotated message and the user who sent it
-const callback = (evt, appId, info, annotation, token, cb) => {
-
-  // Retrieve the annotated message
-  messages.message(annotation.referralMessageId || evt.messageId,
-    token(), (err, message) => {
-      if(err)
-        return;
-
-      // Ignore messages from the app itself
-      if(message.createdBy.id === appId)
-        return;
-
-      // Return the extracted info, annotation, annotated message
-      // and the user who sent it
-      log('Message %s',
-        util.inspect(message, { colors: debug.useColors(), depth: 10 }));
-      cb(info, annotation, message, message.createdBy);
-    });
-};
-
-// Return the action identified in a message-focus annotation event
+// Return the first action identified in a message-focus annotation event
 export const onActionIdentified = (evt, appId, token, cb) => {
   // Check for a message-focus annotation
   if(evt.type === 'message-annotation-added' &&
     evt.annotationType === 'message-focus') {
 
-    // Call back with any action found on the annotation
+    // Pick the first action found on the message-focus annotation
     const focus = JSON.parse(evt.annotationPayload);
     if(focus.applicationId === appId) {
       const action = focus.actions && focus.actions[0];
       if(action) {
         log('Idenfified action %s', action);
-        callback(evt, appId, action, focus, token, cb);
+
+        // Retrieve the original message annotated with the message-focus
+        // annotation
+        messages.message(evt.messageId,
+          token(), (err, message) => {
+            if(err)
+              return;
+            // Ignore messages from the app itself
+            if(message.createdBy.id === appId)
+              return;
+
+            log('Focus message %s',
+              util.inspect(message, { colors: debug.useColors(), depth: 10 }));
+
+            // Return the identified action, the message for which the action
+            // was identified, its focus annotation, and the user who sent
+            // that message
+            cb(action, message, focus, message.createdBy);
+          });
       }
     }
   }
@@ -53,48 +50,48 @@ export const onActionSelected = (evt, appId, token, cb) => {
   if(evt.type === 'message-annotation-added' &&
     evt.annotationType === 'actionSelected') {
 
-    // Call back with the action found on the annotation
+    // Look for the selected action on the annotation
     const selection = JSON.parse(evt.annotationPayload);
     if(selection.targetUserId === appId) {
       const action = selection.actionId;
       if(action) {
         log('Selected action %s', action);
-        callback(evt, appId, action, selection, token, cb);
+
+        // Retrieve the user who selected the action
+        users.user(evt.userId,
+          token(), (err, user) => {
+            if(err)
+              return;
+            log('Action selected by user %o', user);
+
+            // Retrieve the original message that led to the action being
+            // identified, as it contains information relevant to the
+            // action, in particular any recognized entities
+            messages.message(selection.referralMessageId,
+              token(), (err, fmessage) => {
+                if(err)
+                  return;
+                // Ignore messages from the app itself
+                if(fmessage.createdBy.id === appId)
+                  return;
+
+                log('Focus message %s', util.inspect(fmessage,
+                  { colors: debug.useColors(), depth: 10 }));
+
+                // Find the original message-focus annotation on that
+                // message
+                const focus = fmessage.annotations.filter((a) =>
+                  a.type === 'message-focus' &&
+                  a.applicationId === appId)[0];
+
+                // Return the selected action, the message for which the
+                // action was identified, its focus annotation, the
+                // action selection annotation, and the user who selected
+                // the action
+                cb(action, fmessage, focus, selection, user);
+              });
+          });
       }
-    }
-  }
-};
-
-// Return the next step in an action, determined from a user input
-export const onActionNextStep = (evt, appId, token, cb) => {
-  // Check for a focus annotation
-  if(evt.type === 'message-annotation-added' &&
-    evt.annotationType === 'message-focus') {
-
-    // Call back with any action next step found on the focus annotation
-    const focus = JSON.parse(evt.annotationPayload);
-    if(focus.applicationId === appId) {
-      const payload = JSON.parse(focus.payload);
-      const next = (payload.actionNextSteps || [])[0];
-      if(next) {
-        log('Idenfified action next step %s', next);
-        callback(evt, appId, next, focus, token, cb);
-      }
-    }
-  }
-};
-
-// Return the entities recognized in an NLP entities annotation event
-export const onEntities = (evt, appId, token, cb) => {
-  // Check for an entities annotation
-  if(evt.type === 'message-annotation-added' &&
-    evt.annotationType === 'message-nlp-entities') {
-
-    // Call back with any recognized entities
-    const nlp = JSON.parse(evt.annotationPayload);
-    if(nlp.entities.length) {
-      log('Idenfified entities %o', nlp.entities);
-      callback(evt, appId, nlp.entities, nlp, token, cb);
     }
   }
 };

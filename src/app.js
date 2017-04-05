@@ -15,7 +15,7 @@ import * as state from './state';
 import * as twc from './weather';
 import debug from 'debug';
 
-// Debug log
+// Setup debug log
 const log = debug('watsonwork-weather-app');
 
 // Handle events sent to the Weather action Webhook at /weather
@@ -26,27 +26,46 @@ export const weather = (appId, store, wuser, wpassword, token) =>
     // Get the space containing the conversation that generated the event
     const spaceId = req.body.spaceId;
 
-    // A utility function that sends a message back to the conversation in
-    // that space
-    const sendToSpace = (message) => {
+    // A utility function that sends a response message back to the
+    // conversation in that space
+    const sendToSpace = (response) => {
       messages.sendToSpace(spaceId,
-        message.title, message.text, message.actor, token());
+        response.title, response.text, response.actor, token());
     };
 
     // Respond to the Webhook right away, as any response messages will
     // be sent asynchronously
     res.status(201).end();
 
+    // Handle identified actions
+    events.onActionIdentified(req.body, appId, token,
+      (action, message, focus, user) => {
+        log('Identified action %s', action);
+        log('Message from user %o', user);
+        log('Focus message %s', util.inspect(message,
+          { colors: debug.useColors(), depth: 10 }));
+        log('Focus annotation %s', util.inspect(focus,
+          { colors: debug.useColors(), depth: 10 }));
+      });
+
     // Handle selected actions
     events.onActionSelected(req.body, appId, token,
-      (action, selection, message, user) => {
+      (action, message, focus, selection, user) => {
+        log('Selected action %s', action);
+        log('Selected by user %o', user);
+        log('Focus message %s', util.inspect(message,
+          { colors: debug.useColors(), depth: 10 }));
+        log('Focus annotation %s', util.inspect(focus,
+          { colors: debug.useColors(), depth: 10 }));
+        log('Selection annotation %s', util.inspect(selection,
+          { colors: debug.useColors(), depth: 10 }));
 
         // A utility function that sends a message back to the selected
         // action dialog
-        const sendToPrivateDialog = (message) => {
+        const sendToPrivateDialog = (response) => {
           messages.sendToPrivateDialog(
             spaceId, user.id, selection.targetDialogId,
-            message.title, message.text, message.actor, message.buttons,
+            response.title, response.text, response.actor, response.buttons,
             token());
         };
 
@@ -59,7 +78,7 @@ export const weather = (appId, store, wuser, wpassword, token) =>
           astate.action = action;
 
           // Look for a city in the request
-          const city = 'San Francisco, CA';
+          const city = cityAndState(focus.extractedInfo.entities);
 
           // Remember the city
           astate.city = city;
@@ -148,11 +167,15 @@ export const weather = (appId, store, wuser, wpassword, token) =>
 const cityAndState = (entities) => {
   const city =
     (entities.filter((e) => e.type === 'City')[0] || {}).text;
-  if(!city)
+  const cacity =
+    (entities.filter((e) => e.type === 'CA-City')[0] || {}).text;
+  if(!city && !cacity)
     return undefined;
   const state =
     (entities.filter((e) => e.type === 'StateOrCounty')[0] || {}).text;
-  return state ? [city, state].join(', ') : city;
+  return city && state ? [city, state].join(', ') :
+    cacity ? [cacity, 'CA'].join(', ') :
+    city;
 };
 
 // The various messages the application sends
