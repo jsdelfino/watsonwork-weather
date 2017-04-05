@@ -21,15 +21,15 @@ const log = debug('watsonwork-weather-app');
 // Handle events sent to the Weather action Webhook at /weather
 export const weather = (appId, store, wuser, wpassword, token) =>
   (req, res) => {
-    // log('Received body %o', req.body);
+    log('Received body %o', req.body);
 
     // Get the space containing the conversation that generated the event
     const spaceId = req.body.spaceId;
 
     // A utility function that sends a message back to the conversation in
     // that space
-    const send = (message) => {
-      messages.send(spaceId,
+    const sendToSpace = (message) => {
+      messages.sendToSpace(spaceId,
         message.title, message.text, message.actor, token());
     };
 
@@ -37,9 +37,18 @@ export const weather = (appId, store, wuser, wpassword, token) =>
     // be sent asynchronously
     res.status(201).end();
 
-    // Handle messages identified as action requests
-    events.onAction(req.body, appId, token,
-      (action, focus, message, user) => {
+    // Handle selected actions
+    events.onActionSelected(req.body, appId, token,
+      (action, selection, message, user) => {
+
+        // A utility function that sends a message back to the selected
+        // action dialog
+        const sendToPrivateDialog = (message) => {
+          messages.sendToPrivateDialog(
+            spaceId, user.id, selection.targetDialogId,
+            message.title, message.text, message.actor, message.buttons,
+            token());
+        };
 
         // Run with any previously saved action state
         state.run(spaceId, user.id, store, (astate, cb) => {
@@ -49,130 +58,87 @@ export const weather = (appId, store, wuser, wpassword, token) =>
           astate.message = message;
           astate.action = action;
 
-          // Look for a city in the request, default to last city used
-          const city =
-            cityAndState(focus.extractedInfo.entities) || astate.city;
+          // Look for a city in the request
+          const city = 'San Francisco, CA';
 
-          if(city) {
-            // Remember the city
-            astate.city = city;
+          // Remember the city
+          astate.city = city;
 
-            // Ask the user to confirm
-            if(action === 'Get_Weather_Conditions')
-              send(confirmConditions(city, user));
+          if(action === 'Get_Weather_Conditions') {
+            // Get the weather conditions
+            twc.conditions(city,
+              wuser, wpassword, (err, conditions) => {
+                if(err) {
+                  sendToPrivateDialog(weatherError());
+                  return;
+                }
+                if(!conditions.geo && conditions.geo.city) {
+                  // Tell the user that the given city couldn't be found
+                  sendToPrivateDialog(cityNotFound(astate.city));
+                  return;
+                }
 
-            else if(action === 'Get_Weather_Forecast')
-              send(confirmForecast(city, user));
-          }
-          else
-            // Need a city, ask for it
-            send(whichCity(user));
+                // Return the weather conditions
+                sendToPrivateDialog(privateWeatherConditions(conditions));
 
-          // Return the new action state
-          cb(null, astate);
-        });
-      });
+                // Remember the weather conditions, in case the user
+                // would like to share with the space later
+                astate.conditions = conditions;
 
-    // Handle steps within an action, determined from user input
-    events.onActionNextStep(req.body, appId, token,
-      (next, focus, message, user) => {
-
-        // Run with any previously saved action state
-        state.run(spaceId, user.id, store, (astate, cb) => {
-
-          // Proceed with the action and send the weather conditions or a
-          // weather forecast
-          if(next === 'Proceed' && astate.city) {
-
-            if(astate.action === 'Get_Weather_Conditions') {
-              // Get the weather conditions
-              twc.conditions(astate.city,
-                wuser, wpassword, (err, conditions) => {
-                  if(err) {
-                    send(weatherError());
-                    return;
-                  }
-                  if(!conditions.geo && conditions.geo.city) {
-                    // Tell the user that the given city couldn't be found
-                    send(cityNotFound(astate.city, user));
-                    return;
-                  }
-
-                  // Return the weather conditions
-                  send(weatherConditions(conditions, user));
-
-                  // Reset the weather action as it's now complete
-                  delete astate.action;
-                  delete astate.city;
-                  cb(null, astate);
-                });
-              return;
-            }
-
-            if(astate.action === 'Get_Weather_Forecast') {
-              // Get a weather forecast
-              twc.forecast5d(astate.city,
-                wuser, wpassword, (err, forecast) => {
-                  if(err) {
-                    send(weatherError());
-                    return;
-                  }
-                  if(!forecast.geo && forecast.geo.city) {
-                    // Tell the user that the given city couldn't be found
-                    send(cityNotFound(astate.city, user));
-                    return;
-                  }
-
-                  // Return weather forecast
-                  send(weatherForecast(forecast, user));
-
-                  // Reset the weather action as it's now complete
-                  delete astate.action;
-                  delete astate.city;
-                  cb(null, astate);
-                });
-              return;
-            }
+                cb(null, astate);
+              });
+            return;
           }
 
-          // Cancel the action
-          if((astate.action === 'Get_Weather_Conditions' ||
-            astate.action === 'Get_Weather_Forecast') &&
-            next === 'Cancel') {
-            send(noProblem(user));
+          if(action === 'Get_Weather_Forecast') {
+            // Get a weather forecast
+            twc.forecast5d(astate.city,
+              wuser, wpassword, (err, forecast) => {
+                if(err) {
+                  sendToPrivateDialog(weatherError());
+                  return;
+                }
+                if(!forecast.geo && forecast.geo.city) {
+                  // Tell the user that the given city couldn't be found
+                  sendToPrivateDialog(cityNotFound(astate.city));
+                  return;
+                }
 
-            // Forget the weather action and city as that was not what the
-            // user wanted
-            delete astate.action;
-            delete astate.city;
+                // Return weather forecast
+                sendToPrivateDialog(privateWeatherForecast(forecast));
+
+                // Remember the weather forecast, in case the user
+                // would like to share with the space later
+                astate.forecast = forecast;
+
+                cb(null, astate);
+              });
+            return;
+          }
+
+          if(action === 'Dont_Share') {
+            // Say that nothing will be shared with the space
+            sendToPrivateDialog(notSharing());
             cb(null, astate);
-          }
-        });
-      });
-
-    // Handle mentions of entities in messages
-    events.onEntities(req.body, appId, token,
-      (entities, nlp, message, user) => {
-
-        // Run with any previously saved action state
-        state.run(spaceId, user.id, store, (astate, cb) => {
-
-          // Look for a city and state in the extracted entities
-          const city = cityAndState(entities);
-          if(city) {
-            astate.city = city;
-            if(message.id !== astate.message.id)
-
-              // Ask for a confirmation to get the weather conditions or
-              // weather forecast in the recognized city
-              if(astate.action === 'Get_Weather_Conditions')
-                send(confirmConditions(city, user));
-
-              else if(astate.action === 'Get_Weather_Forecast')
-                send(confirmForecast(city, user));
+            return;
           }
 
-          // Return the new action state
+          if(action === 'Share_Weather_Conditions') {
+            // Share the weather conditions with the space
+            sendToSpace(sharedWeatherConditions(user, astate.conditions));
+            sendToPrivateDialog(shared());
+            cb(null, astate);
+            return;
+          }
+
+          if(action === 'Share_Weather_Forecast') {
+            // Share the weather forecast with the space
+            sendToSpace(sharedWeatherForecast(user, astate.forecast));
+            sendToPrivateDialog(shared());
+            cb(null, astate);
+            return;
+          }
+
           cb(null, astate);
         });
       });
@@ -192,63 +158,84 @@ const cityAndState = (entities) => {
 // The various messages the application sends
 
 // Weather conditions
-const weatherConditions = (w, user) => ({
-  title: 'Weather Conditions',
-  text: util.format('%s\n%sF Feels like %sF\n%s%s',
+const weatherConditionsText = (w) => 
+  util.format('%s\\n%sF Feels like %sF\\n%s%s',
     [w.geo.city, w.geo.adminDistrictCode].join(', '),
     w.observation.temp,
     w.observation.feels_like,
     w.observation.wx_phrase,
     w.observation.terse_phrase ?
-      '. ' + w.observation.terse_phrase : ''),
-  actor: 'The Weather Company'
+      '. ' + w.observation.terse_phrase : '');
+
+const privateWeatherConditions = (w) => ({
+  title: util.format('Here are the Weather conditions in %s. ' +
+    'Would you like to share this with the space?',
+    [w.geo.city, w.geo.adminDistrictCode].join(', ')),
+  text: weatherConditionsText(w),
+  buttons: [
+    ['Share_Weather_Conditions', 'Yes, Share with Space', 'PRIMARY'],
+    ['Dont_Share', 'No, Thanks', 'SECONDARY']
+  ]
+});
+
+const sharedWeatherConditions = (user, w) => ({
+  title: util.format('Weather conditions in %s.',
+    [w.geo.city, w.geo.adminDistrictCode].join(', ')),
+  text: weatherConditionsText(w),
+  actor: user.displayName
 });
 
 // Weather forecast
-const weatherForecast = (w, user) => ({
-  title: 'Weather Forecast',
-  text: util.format('%s%s',
+const weatherForecastText = (w) =>
+  util.format('%s%s',
     [w.geo.city, w.geo.adminDistrictCode].join(', '),
     w.forecasts.reduce((a, f) => a +
-      util.format('\n%s %sF %sF %s',
+      util.format('\\n%s %sF %sF %s',
         f.dow.slice(0, 3),
         f.max_temp || '--', f.min_temp || '--',
         f.narrative.split('.')[0]),
-      '')),
-  actor: 'The Weather Company'
+      ''));
+
+const privateWeatherForecast = (w) => ({
+  title: util.format('Here\'s the Weather forecast for %s. ' +
+    'Would you like to share this with the space?',
+    [w.geo.city, w.geo.adminDistrictCode].join(', ')),
+  text: weatherForecastText(w),
+  buttons: [
+    ['Share_Weather_Forecast', 'Yes, Share with Space', 'PRIMARY'],
+    ['Dont_Share', 'No, Thanks', 'SECONDARY']
+  ]
 });
 
-// Ask for a confirmation to get the weather conditions
-const confirmConditions = (city, user) => ({
-  text: util.format(
-    'Hey %s, I think you\'re looking for the weather conditions ' +
-   'in %s.\nIs that correct?', user.displayName, city)
+const sharedWeatherForecast = (user, w) => ({
+  title: util.format('Weather forecast for %s.',
+    [w.geo.city, w.geo.adminDistrictCode].join(', ')),
+  text: weatherForecastText(w),
+  actor: user.displayName
 });
 
-// Ask for a confirmation to get a weather forecast
-const confirmForecast = (city, user) => ({
-  text: util.format(
-    'Hey %s, I think you\'re looking for a weather forecast in %s.\n' +
-    'Is that correct?', user.displayName, city)
+// Shared with the space
+const shared = () => ({
+  title: 'Your message was successfully shared with the space.',
+  text: ' '
 });
 
-// Ask which city to get weather for
-const whichCity = (user) => ({
-  text: util.format(
-    'Hey %s, I can get the weather for you but I need a city name.\nYou can ' +
-    'say San Francisco, or Littleton, MA for example.', user.displayName)
+// Nothing will be shared
+const notSharing = () => ({
+  title: 'OK, nothing will be shared with the space.',
+  text: ' '
 });
 
-// Ask to clarify a city that cannot be found
-const cityNotFound = (city, user) => ({
-  text: util.format(
-    'Hey %s, I couldn\'t find %s, I need a valid city.',
-    user.displayName, city)
+// Missing city
+const missingCity = () => ({
+  title: 'I can get the weather for you but I need a city name.',
+  text: 'You can say San Francisco, or San Diego for example.'
 });
 
-// Say OK
-const noProblem = (user) => ({
-  text: util.format('OK %s, no problem.', user.displayName)
+// City not found
+const cityNotFound = (city) => ({
+  title: util.format('I couldn\'t find %s, I need a valid city.', city),
+  text: ' '
 });
 
 // Create Express Web app
@@ -285,10 +272,10 @@ export const webapp =
 const main = (argv, env, cb) => {
   // Create Express Web app
   webapp(
-    env.WEATHER_APP_ID,
-    env.WEATHER_APP_SECRET,
-    env.WEATHER_WEBHOOK_SECRET,
-    env.WEATHER_STORE,
+    env.WEATHER_ACTIONS_APP_ID,
+    env.WEATHER_ACTIONS_APP_SECRET,
+    env.WEATHER_ACTIONS_WEBHOOK_SECRET,
+    env.WEATHER_ACTIONS_STORE,
     env.WEATHER_TWC_USER,
     env.WEATHER_TWC_PASSWORD, (err, app) => {
       if(err) {

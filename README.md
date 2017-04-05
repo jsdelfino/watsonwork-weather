@@ -21,8 +21,9 @@ capabilities to understand natural language, identify domain specific user
 intents, recognize entities such as locations and cities for example, and
 determine application actions based on previously identified intents and
 entities;
-* how to handle a multi-turn conversation and keep track of what's being
-said across multiple messages.
+* how to implement applications actions, handle private interactions with
+users using action dialogs and share action results with other users in
+Watson Workspace space.
 
 ## Try it out
 
@@ -58,10 +59,10 @@ In a terminal window, do the following:
 export DEBUG=watsonwork-*
 
 # Get the code
-git clone https://github.com/watsonwork/watsonwork-weather
+git clone https://github.com/watsonwork/watsonwork-weather-actions
 
 # Build the app
-cd watsonwork-weather
+cd watsonwork-weather-actions
 npm run build
 ```
 
@@ -103,14 +104,14 @@ need to configure the Weather app with them.
 
 In your Web browser, go to [Watson Work Services / Apps]
 (https://workspace.ibm.com/developer/apps) and add a new app named
-**Weather** with a Webhook configured for **message-created** and
+**Weather Actions** with a Webhook configured for **message-created** and
 **message-annotation-added** events.
 
 Set the Webhook **Callback URL** to a public URL targeting the server where
 you're planning to run the sample app,
-`https://<your server hostname>/weather` for example, or
-`https://<bluemix app name>.mybluemix.net/weather` if you've deployed it
-to Bluemix.
+`https://<your server hostname>/weather-actions` for example, or
+`https://<bluemix app name>.mybluemix.net/weather-actions` if you've deployed
+it to Bluemix.
 
 Configure the **Make It Cognitive** section of the app to use your Watson
 Conversation workspace, user and password.
@@ -125,9 +126,9 @@ select your app and under **Runtime** / **Environment Variables** /
 **User Defined**, add the following variables:
 
 ```
-WEATHER_APP_ID: <the Weather app id>                                      
-WEATHER_APP_SECRET: <the Weather app secret>                              
-WEATHER_WEBHOOK_SECRET: <the Weather Webhook secret>
+WEATHER_ACTIONS_APP_ID: <the Weather app id>                                      
+WEATHER_ACTIONS_APP_SECRET: <the Weather app secret>                              
+WEATHER_ACTIONS_WEBHOOK_SECRET: <the Weather Webhook secret>
 WEATHER_TWC_USER: <your Weather company service user>
 WEATHER_TWC_PASSWORD: <your Weather company service password>
 DEBUG: watsonwork-*
@@ -157,9 +158,9 @@ You can skip this if you've just started the app on Bluemix.
 In the terminal window, do the following:
 ```
 # Configure the app id and app secret
-export WEATHER_APP_ID=<the Weather app id>
-export WEATHER_APP_SECRET=<the Weather app secret>
-export WEATHER_WEBHOOK_SECRET=<the Weather Webhook secret>
+export WEATHER_ACTIONS_APP_ID=<the Weather app id>
+export WEATHER_ACTIONS_APP_SECRET=<the Weather app secret>
+export WEATHER_ACTIONS_WEBHOOK_SECRET=<the Weather Webhook secret>
 export WEATHER_TWC_USER: <your Weather company service user>
 export WEATHER_TWC_PASSWORD: <your Weather company service password>
 ```
@@ -230,7 +231,7 @@ npm start
 You can now go back to
 [Watson Work Services / Apps](https://workspace.ibm.com/developer/apps),  
 edit the **Weather** app and set its Webhook **Callback URL** to
-`https://<subdomain name>.localtunnel.me/weather`.
+`https://<subdomain name>.localtunnel.me/weather-actions`.
 
 ### Enabling the app Webhook
 
@@ -249,9 +250,9 @@ following log:
 watsonwork-weather-app Got Webhook verification challenge
 ```
 
-### Chatting with the app in a space
+### Using the actions contributed by the app in a space
 
-You're now ready to chat with the sample app!
+You're now ready to use the actions contributed by the app!
 
 Go to [Watson Workspace](https://workspace.ibm.com) and create a space
 named **Examples**, then open the **Apps** tab for that space and add the
@@ -259,15 +260,17 @@ named **Examples**, then open the **Apps** tab for that space and add the
 
 In the **Examples** space, say "*Is it raining in San Francisco?*".
 
-The Weather app will respond with a message asking you to confirm that you're
-interested in the weather in San Francisco: 
-"*Hey [your name], I think you're looking for the weather conditions in
-San Francisco. Is that correct?*".
+That sentence should be highlighted to indicate that Watson understood it and
+identified a useful action.
 
-Say "*yes*".
+Cick the highlighted sentence to trigger the **Get Weather Conditions**
+action and retrieve the current weather conditions in San Francisco.
 
-The Weather app will then respond with the weather conditions in San
-Francisco, like this for example:
+Click the **Share with the Space** button to share the weather conditions with
+the other users in the current space.
+
+The Weather app will post the weather conditions in San Francisco to the
+space, like this for example:
 "*San Francisco, CA, 48F Feels like 41F, Fair*"
 
 ## Project layout

@@ -33,9 +33,9 @@ zip -r .cf/app.zip package.json .npmrc src lib
 
 # Set app environment
 .cf/cf set-env $APP DEBUG "watsonwork-*"
-.cf/cf set-env $APP WEATHER_APP_ID "$WEATHER_APP_ID"
-.cf/cf set-env $APP WEATHER_APP_SECRET "$WEATHER_APP_SECRET"
-.cf/cf set-env $APP WEATHER_WEBHOOK_SECRET "$WEATHER_WEBHOOK_SECRET"
+.cf/cf set-env $APP WEATHER_ACTIONS_APP_ID "$WEATHER_APP_ID"
+.cf/cf set-env $APP WEATHER_ACTIONS_APP_SECRET "$WEATHER_APP_SECRET"
+.cf/cf set-env $APP WEATHER_ACTIONS_WEBHOOK_SECRET "$WEATHER_WEBHOOK_SECRET"
 .cf/cf set-env $APP WEATHER_TWC_USER "$WEATHER_TWC_USER"
 .cf/cf set-env $APP WEATHER_TWC_PASSWORD "$WEATHER_TWC_PASSWORD"
 

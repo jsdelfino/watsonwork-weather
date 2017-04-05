@@ -14,7 +14,8 @@ export const query = (q, token, cb) => {
   request.post('https://api.watsonwork.ibm.com/graphql', {
     headers: {
       jwt: token,
-      'content-type': 'application/graphql'
+      'content-type': 'application/graphql',
+      'x-graphql-view': 'ACTIONS,PUBLIC'
     },
     body: q
 

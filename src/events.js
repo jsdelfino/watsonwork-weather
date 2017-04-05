@@ -12,35 +12,54 @@ const log = debug('watsonwork-weather-events');
 const callback = (evt, appId, info, annotation, token, cb) => {
 
   // Retrieve the annotated message
-  messages.message(evt.messageId, token(), (err, message) => {
-    if(err)
-      return;
+  messages.message(annotation.referralMessageId || evt.messageId,
+    token(), (err, message) => {
+      if(err)
+        return;
 
-    // Ignore messages from the app itself
-    if(message.createdBy.id === appId)
-      return;
+      // Ignore messages from the app itself
+      if(message.createdBy.id === appId)
+        return;
 
-    // Return the extracted info, annotation, annotated message
-    // and the user who sent it
-    log('Message %s',
-      util.inspect(message, { colors: debug.useColors(), depth: 10 }));
-    cb(info, annotation, message, message.createdBy);
-  });
+      // Return the extracted info, annotation, annotated message
+      // and the user who sent it
+      log('Message %s',
+        util.inspect(message, { colors: debug.useColors(), depth: 10 }));
+      cb(info, annotation, message, message.createdBy);
+    });
 };
 
-// Return the action identified in an annotation event
-export const onAction = (evt, appId, token, cb) => {
-  // Check for a focus annotation
+// Return the action identified in a message-focus annotation event
+export const onActionIdentified = (evt, appId, token, cb) => {
+  // Check for a message-focus annotation
   if(evt.type === 'message-annotation-added' &&
     evt.annotationType === 'message-focus') {
 
-    // Call back with any action found on the focus annotation
+    // Call back with any action found on the annotation
     const focus = JSON.parse(evt.annotationPayload);
     if(focus.applicationId === appId) {
       const action = focus.actions && focus.actions[0];
       if(action) {
         log('Idenfified action %s', action);
         callback(evt, appId, action, focus, token, cb);
+      }
+    }
+  }
+};
+
+// Return the action selected in an action-selected annotation event
+export const onActionSelected = (evt, appId, token, cb) => {
+  // Check for an action-selected annotation
+  if(evt.type === 'message-annotation-added' &&
+    evt.annotationType === 'actionSelected') {
+
+    // Call back with the action found on the annotation
+    const selection = JSON.parse(evt.annotationPayload);
+    if(selection.targetUserId === appId) {
+      const action = selection.actionId;
+      if(action) {
+        log('Selected action %s', action);
+        callback(evt, appId, action, selection, token, cb);
       }
     }
   }
@@ -65,7 +84,7 @@ export const onActionNextStep = (evt, appId, token, cb) => {
   }
 };
 
-// Return the entities recognized in an annotation event
+// Return the entities recognized in an NLP entities annotation event
 export const onEntities = (evt, appId, token, cb) => {
   // Check for an entities annotation
   if(evt.type === 'message-annotation-added' &&

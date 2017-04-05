@@ -65,42 +65,102 @@ export const message = (messageId, token, cb) => {
     });
 };
 
-// Send a message template to the conversation in a space
-export const send = (spaceId, title, text, actor, token, cb) => {
-  request.post(
-    'https://api.watsonwork.ibm.com/v1/spaces/' + spaceId + '/messages', {
-      headers: {
-        Authorization: 'Bearer ' + token
-      },
-      json: true,
-      // An App message can specify a color, a title, markdown text and
-      // an 'actor' useful to show where the message is coming from
-      body: {
-        type: 'appMessage',
-        version: 1.0,
-        annotations: [{
-          type: 'generic',
-          version: 1.0,
+// Send a message to the conversation in a space
+export const sendToSpace = (spaceId,
+  title, text, actor, token, cb) => {
+  log('Sending title %s text %s to space %s', title, text, spaceId);
 
-          color: '#6CB7FB',
-          title: title,
-          text: text,
-
-          actor: {
-            name: actor
+  graphql.query(
+    // Generate message template mutation
+    util.format(`
+      mutation {
+        createMessage(input: {
+          conversationId: "%s"
+          annotations: [
+            {
+              genericAnnotation: {
+                title: "%s"
+                text: "%s"
+                color: "#6CB7FB"
+                actor: {
+                  name: "%s"
+                }
+              }
+            }
+          ]
+        }) {
+          message {
+            id
           }
-        }]
-      }
-    }, (err, res) => {
-      if(err || res.statusCode !== 201) {
-        log('Error sending message %o', err || res.statusCode);
+        }
+      }`, spaceId, title, text, actor),
+    token, (err, res) => {
+      if(err) {
+        log('Error sending message %o', err);
         if(cb)
-          cb(err || new Error(res.statusCode));
+          cb(err);
         return;
       }
-      log('Send result %d, %o', res.statusCode, res.body);
+      log('Send result %s',
+        util.inspect(res, { colors: debug.useColors(), depth: 10 }));
       if(cb)
-        cb(null, res.body);
+        cb(null, res);
+    });
+};
+
+// Send a message to a private action dialog
+export const sendToPrivateDialog = (spaceId, userId, dialogId,
+  title, text, actor, buttons, token, cb) => {
+  log('Sending title %s text %s to space %s user %s dialog %s',
+    title, text, spaceId, userId, dialogId);
+
+  graphql.query(
+    // Generate message template mutation
+    util.format(`
+      mutation {
+        createTargetedMessage(input: {
+          conversationId: "%s"
+          targetUserId: "%s"
+          targetDialogId: "%s" 
+          annotations: [
+            {
+              genericAnnotation: {
+                title: "%s"
+                text: "%s"
+                color: "#6CB7FB"
+                actor: {
+                  name: "%s"
+                }
+                buttons: [ %s ]
+              }
+            }
+
+          ]
+        }) {
+          successful
+        }
+      }`, spaceId, userId, dialogId, title, text, actor,
+
+        // Generate postback buttons
+        (buttons || []).map((b) => util.format(`{
+          postbackButton: {
+            id: "%s",
+            title: "%s",
+            style: %s
+          }
+        }`, b[0], b[1], b[2] || 'PRIMARY')).join(',')),
+
+    token, (err, res) => {
+      if(err) {
+        log('Error sending message %o', err);
+        if(cb)
+          cb(err);
+        return;
+      }
+      log('Send result %s',
+        util.inspect(res, { colors: debug.useColors(), depth: 10 }));
+      if(cb)
+        cb(null, res);
     });
 };
 
