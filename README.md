@@ -1,11 +1,11 @@
-# watsonwork-weather
+# watsonwork-weather-actions
 
-[![Build Status](https://travis-ci.org/watsonwork/watsonwork-weather.svg)](https://travis-ci.org/watsonwork/watsonwork-weather)
+[![Build Status](https://travis-ci.org/watsonwork/watsonwork-weather-actions.svg)](https://travis-ci.org/watsonwork/watsonwork-weather-actions)
 
 A sample Watson Work cognitive app that listens to messages posted to a
 space in IBM Watson Workspace, understands the natural language conversation
-happening in the space and posts helpful weather information as needed in
-the conversation.
+happening in the space and contributes actions that post helpful weather
+information as needed in the conversation.
 
 The Watson Work platform provides **spaces** for people to exchange
 **messages** in conversations. This sample app shows the following
