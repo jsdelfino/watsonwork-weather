@@ -1,6 +1,6 @@
 # watsonwork-weather-actions
 
-[![Build Status](https://travis-ci.org/watsonwork/watsonwork-weather-actions.svg)](https://travis-ci.org/watsonwork/watsonwork-weather-actions)
+[![Build Status](https://travis-ci.org/jsdelfino/watsonwork-weather-actions.svg)](https://travis-ci.org/jsdelfino/watsonwork-weather-actions)
 
 A sample Watson Work cognitive app that listens to messages posted to a
 space in IBM Watson Workspace, understands the natural language conversation
@@ -36,7 +36,7 @@ If you want to give the sample app a quick try using [Bluemix]
 from Github without even having to download it to your local development
 environment and build it yourself. Just click the button below:
 
-[![Deploy to Bluemix](https://bluemix.net/deploy/button.png)](https://bluemix.net/deploy?repository=https://github.com/watsonwork/watsonwork-weather&branch=master)
+[![Deploy to Bluemix](https://bluemix.net/deploy/button.png)](https://bluemix.net/deploy?repository=https://github.com/jsdelfino/watsonwork-weather-actions&branch=master)
 
 Once that's done, go to your
 [Bluemix Dashboard](https://console.ng.bluemix.net/dashboard/cf-apps). The
@@ -59,7 +59,7 @@ In a terminal window, do the following:
 export DEBUG=watsonwork-*
 
 # Get the code
-git clone https://github.com/watsonwork/watsonwork-weather-actions
+git clone https://github.com/jsdelfino/watsonwork-weather-actions
 
 # Build the app
 cd watsonwork-weather-actions
